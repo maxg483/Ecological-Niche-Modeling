@@ -1,0 +1,144 @@
+# Download_Occurrence_Data.R
+## Download Occurrence Data
+## Original script by AE Melton. 
+### Modified and created by ML Gaynor 
+#### Further changed by Max Gebhart
+
+setwd("C:/Users/max/Downloads/BotanyENMWorkshop2019")
+### Load packages 
+library(ridigbio)
+library(spocc)
+library(scrubr)
+
+
+### Data download from iDigBio
+#### Search for the species Liatris cylindracea
+iDigBio_AG <- idig_search_records(rq=list(scientificname="Helianthus agrestis"))
+iDigBio_AN <- idig_search_records(rq=list(scientificname="Helianthus angustifolius"))
+iDigBio_AT <- idig_search_records(rq=list(scientificname="Helianthus atrorubens"))
+iDigBio_CA <- idig_search_records(rq=list(scientificname="Helianthus carnosus"))
+iDigBio_DD <- idig_search_records(rq=list(scientificname="Helianthus debilis subsp. debilis"))
+iDigBio_DT <- idig_search_records(rq=list(scientificname="Helianthus debilis subsp. tardiflorus"))
+iDigBio_DI <- idig_search_records(rq=list(scientificname="Helianthus divericatus"))
+iDigBio_FO <- idig_search_records(rq=list(scientificname="Helianthus floridanus"))
+iDigBio_HE <- idig_search_records(rq=list(scientificname="Helianthus heterophyllus"))
+iDigBio_MI <- idig_search_records(rq=list(scientificname="Helianthus microcephalus"))
+iDigBio_RA <- idig_search_records(rq=list(scientificname="Helianthus radula"))
+
+
+#### Search for the family Asteraceae ####UNIMPORTANT
+iDigBio_LC_family <- idig_search_records(rq=list(family="Asteraceae"), limit=10000)
+
+
+### What if you want to read in all the points for a family within an extent?
+#### Hint: Use the [iDigBio portal](https://www.idigbio.org/portal/search) to
+#### determine the bounding box for your region of interest. 
+
+rq_input <- list("scientificname"=list("type"="exists"),
+                 "family"="asteraceae", 
+                 geopoint=list(
+                   type="geo_bounding_box",
+                   top_left=list(lon=-87.86, lat=30.56),
+                   bottom_right=list(lon=-79.21, lat= 24.78)
+                 )
+)
+##### Search using the input you just made
+iDigBio_LC_family_florida <- idig_search_records(rq_input, limit=1000)
+
+#### Save as csv files 
+write.csv(iDigBio_AG, "data/iDigBio_AG_021220.csv", row.names = FALSE)
+write.csv(iDigBio_AN, "data/iDigBio_AN_021220.csv", row.names = FALSE)
+write.csv(iDigBio_AT, "data/iDigBio_AT_021220.csv", row.names = FALSE)
+write.csv(iDigBio_CA, "data/iDigBio_CA_021220.csv", row.names = FALSE)
+write.csv(iDigBio_DD, "data/iDigBio_DD_021220.csv", row.names = FALSE)
+write.csv(iDigBio_DT, "data/iDigBio_DT_021220.csv", row.names = FALSE)
+write.csv(iDigBio_FO, "data/iDigBio_FO_021220.csv", row.names = FALSE)
+write.csv(iDigBio_HE, "data/iDigBio_HE_021220.csv", row.names = FALSE)
+write.csv(iDigBio_MI, "data/iDigBio_MI_021220.csv", row.names = FALSE)
+write.csv(iDigBio_RA, "data/iDigBio_RA_021220.csv", row.names = FALSE)
+
+write.csv(iDigBio_LC_family, "data/iDigBio_LC_family_072819.csv", row.names = FALSE)
+
+
+### Data download using spocc
+#### Using the package *spocc* we download data from iDigBio and GBIF.
+#### We specified that coordinates are needed. Notice that the occurrence records for iDigBio and GBIF are stored sperately. 
+(spocc_AG <- occ(query = "Helianthus agrestis", from = c('gbif','idigbio'), has_coords = T))
+(spocc_AN <- occ(query = "Helianthus angustifolius", from = c('gbif','idigbio'), has_coords = T))
+(spocc_AT <- occ(query = "Helianthus atrorubens", from = c('gbif','idigbio'), has_coords = T))
+(spocc_CA <- occ(query = "Helianthus carnosus", from = c('gbif','idigbio'), has_coords = T))
+(spocc_DD <- occ(query = "Helianthus debilis subsp. debilis", from = c('gbif','idigbio'), has_coords = T))
+(spocc_DT <- occ(query = "Helianthus debilis subsp. tardiflorus", from = c('gbif','idigbio'), has_coords = T))
+(spocc_DI <- occ(query = "Helianthus divaricatus", from = c('gbif','idigbio'), has_coords = T))
+(spocc_FO <- occ(query = "Helianthus floridanus", from = c('gbif','idigbio'), has_coords = T))
+(spocc_HE <- occ(query = "Helianthus heterophyllus", from = c('gbif','idigbio'), has_coords = T))
+(spocc_MI <- occ(query = "Helianthus microcephalus", from = c('gbif','idigbio'), has_coords = T))
+(spocc_RA <- occ(query = "Helianthus radula", from = c('gbif','idigbio'), has_coords = T))
+
+
+#### Processing spocc download
+##### Synoymns
+###### Sometimes the 'name' in the database does not match the 'scientific name'- this can be due to synoymns or variety names. 
+cbind(spocc_AG$gbif$data$Helianthus_agrestis$acceptedScientificName[19], spocc_AG$gbif$data$Helianthus_agrestis$name[19])
+
+cbind(spocc_AN$gbif$data$Helianthus_angustifolius$acceptedScientificName[500], spocc_AN$gbif$data$Helianthus_angustifolius$name[500])
+
+cbind(spocc_AT$gbif$data$Helianthus_atrorubens$acceptedScientificName[157], spocc_AT$gbif$data$Helianthus_atrorubens$name[157])
+
+cbind(spocc_CA$gbif$data$Helianthus_carnosus$acceptedScientificName[15], spocc_CA$gbif$data$Helianthus_carnosus$name[15])
+
+cbind(spocc_DD$gbif$data$Helianthus_debilis_subsp._debilis$acceptedScientificName[77], spocc_DD$gbif$data$Helianthus_debilis_subsp._debilis$name[77])
+
+cbind(spocc_DI$gbif$data$Helianthus_divaricatus$acceptedScientificName[500], spocc_DI$gbif$data$Helianthus_divaricatus$name[500])
+
+cbind(spocc_DT$gbif$data$Helianthus_debilis_subsp._tardiflorus$acceptedScientificName[22], spocc_DT$gbif$data$Helianthus_subsp._tardiflorus$name[22])
+
+cbind(spocc_FO$gbif$data$Helianthus_floridanus$acceptedScientificName[30], spocc_FO$gbif$data$Helianthus_floridanus$name[30])
+
+cbind(spocc_HE$gbif$data$Helianthus_heterophyllus$acceptedScientificName[121], spocc_HE$gbif$data$Helianthus_heterophyllus$name[121])
+
+cbind(spocc_MI$gbif$data$Helianthus_microcephalus$acceptedScientificName[230], spocc_MI$gbif$data$Helianthus_microcephalus$name[230])
+
+cbind(spocc_RA$gbif$data$Helianthus_radula$acceptedScientificName[193], spocc_RA$gbif$data$Helianthus_radula$name[193])
+
+###### Since this could be an issue when processing the data, we are going to fix the name using the package *scurbr*. 
+spocc_AG_namefixed <- fixnames(spocc_AG, how = "query")
+spocc_AN_namefixed <- fixnames(spocc_AN, how = "query")
+spocc_AT_namefixed <- fixnames(spocc_AT, how = "query")
+spocc_CA_namefixed <- fixnames(spocc_CA, how = "query")
+spocc_DD_namefixed <- fixnames(spocc_DD, how = "query")
+spocc_DT_namefixed <- fixnames(spocc_DT, how = "query")
+spocc_DI_namefixed <- fixnames(spocc_DI, how = "query")
+spocc_FO_namefixed <- fixnames(spocc_FO, how = "query")
+spocc_HE_namefixed <- fixnames(spocc_HE, how = "query")
+spocc_MI_namefixed <- fixnames(spocc_MI, how = "query")
+spocc_RA_namefixed <- fixnames(spocc_RA, how = "query")
+
+##### Data format
+###### Since the occurrence records for iDigBio and GBIF are stored sperately,
+###### next we have to convert the occurrence download into a single data.frame (df) where all query are combined.
+
+spocc_AG_df <- occ2df(spocc_AG_namefixed)
+spocc_AN_df <- occ2df(spocc_AN_namefixed)
+spocc_AT_df <- occ2df(spocc_AT_namefixed)
+spocc_CA_df <- occ2df(spocc_CA_namefixed)
+spocc_DD_df <- occ2df(spocc_DD_namefixed)
+spocc_DT_df <- occ2df(spocc_DT_namefixed)
+spocc_DI_df <- occ2df(spocc_DI_namefixed)
+spocc_FO_df <- occ2df(spocc_FO_namefixed)
+spocc_HE_df <- occ2df(spocc_HE_namefixed)
+spocc_MI_df <- occ2df(spocc_MI_namefixed)
+spocc_RA_df <- occ2df(spocc_RA_namefixed)
+
+#### Save as csv files 
+write.csv(spocc_AG_df, "data/spocc_AG_df_021920.csv", row.names = FALSE)
+write.csv(spocc_AN_df, "data/spocc_AN_df_021920.csv", row.names = FALSE)
+write.csv(spocc_AT_df, "data/spocc_AT_df_021920.csv", row.names = FALSE)
+write.csv(spocc_CA_df, "data/spocc_CA_df_021920.csv", row.names = FALSE)
+write.csv(spocc_DD_df, "data/spocc_DD_df_021920.csv", row.names = FALSE)
+write.csv(spocc_DT_df, "data/spocc_DT_df_021920.csv", row.names = FALSE)
+write.csv(spocc_DI_df, "data/spocc_DI_df_021920.csv", row.names = FALSE)
+write.csv(spocc_FO_df, "data/spocc_FO_df_021920.csv", row.names = FALSE)
+write.csv(spocc_HE_df, "data/spocc_HE_df_021920.csv", row.names = FALSE)
+write.csv(spocc_MI_df, "data/spocc_MI_df_021920.csv", row.names = FALSE)
+write.csv(spocc_RA_df, "data/spocc_RA_df_021920.csv", row.names = FALSE)
