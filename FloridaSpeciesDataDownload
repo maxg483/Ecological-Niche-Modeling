@@ -51,14 +51,12 @@ write.csv(iDigBio_AN, "data/iDigBio_AN_021220.csv", row.names = FALSE)
 write.csv(iDigBio_AT, "data/iDigBio_AT_021220.csv", row.names = FALSE)
 write.csv(iDigBio_CA, "data/iDigBio_CA_021220.csv", row.names = FALSE)
 write.csv(iDigBio_DD, "data/iDigBio_DD_021220.csv", row.names = FALSE)
+write.csv(iDigBio_DI, "data/iDigBio_DI_022120.csv", row.names = FALSE)
 write.csv(iDigBio_DT, "data/iDigBio_DT_021220.csv", row.names = FALSE)
 write.csv(iDigBio_FO, "data/iDigBio_FO_021220.csv", row.names = FALSE)
 write.csv(iDigBio_HE, "data/iDigBio_HE_021220.csv", row.names = FALSE)
 write.csv(iDigBio_MI, "data/iDigBio_MI_021220.csv", row.names = FALSE)
 write.csv(iDigBio_RA, "data/iDigBio_RA_021220.csv", row.names = FALSE)
-
-write.csv(iDigBio_LC_family, "data/iDigBio_LC_family_072819.csv", row.names = FALSE)
-
 
 ### Data download using spocc
 #### Using the package *spocc* we download data from iDigBio and GBIF.
@@ -69,7 +67,10 @@ write.csv(iDigBio_LC_family, "data/iDigBio_LC_family_072819.csv", row.names = FA
 (spocc_CA <- occ(query = "Helianthus carnosus", from = c('gbif','idigbio'), has_coords = T))
 (spocc_DD <- occ(query = "Helianthus debilis subsp. debilis", from = c('gbif','idigbio'), has_coords = T))
 (spocc_DT <- occ(query = "Helianthus debilis subsp. tardiflorus", from = c('gbif','idigbio'), has_coords = T))
-(spocc_DI <- occ(query = "Helianthus divaricatus", from = c('gbif','idigbio'), has_coords = T))
+
+## Divaricatus has a lot more data points than the other species so we raised the limit to capture them all
+(spocc_DI <- occ(query = "Helianthus divaricatus", from = c('gbif','idigbio'), limit = 5000, has_coords = T))
+
 (spocc_FO <- occ(query = "Helianthus floridanus", from = c('gbif','idigbio'), has_coords = T))
 (spocc_HE <- occ(query = "Helianthus heterophyllus", from = c('gbif','idigbio'), has_coords = T))
 (spocc_MI <- occ(query = "Helianthus microcephalus", from = c('gbif','idigbio'), has_coords = T))
@@ -89,7 +90,7 @@ cbind(spocc_CA$gbif$data$Helianthus_carnosus$acceptedScientificName[15], spocc_C
 
 cbind(spocc_DD$gbif$data$Helianthus_debilis_subsp._debilis$acceptedScientificName[77], spocc_DD$gbif$data$Helianthus_debilis_subsp._debilis$name[77])
 
-cbind(spocc_DI$gbif$data$Helianthus_divaricatus$acceptedScientificName[500], spocc_DI$gbif$data$Helianthus_divaricatus$name[500])
+cbind(spocc_DI$gbif$data$Helianthus_divaricatus$acceptedScientificName[1079], spocc_DI$gbif$data$Helianthus_divaricatus$name[1079])
 
 cbind(spocc_DT$gbif$data$Helianthus_debilis_subsp._tardiflorus$acceptedScientificName[22], spocc_DT$gbif$data$Helianthus_subsp._tardiflorus$name[22])
 
