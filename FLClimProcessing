@@ -1,0 +1,149 @@
+# ClimateProcesssing.R
+## Climate Layer Processing
+## Original script by Charlotte Germain-Aubrey.
+## Modified and created by ML Gaynor. 
+##Further modified by Max Gebhart
+
+# Load Packages 
+library(maptools)
+library(raster)
+library(rgdal)
+library(sp)
+library(maps)
+library(mapproj)
+
+
+  # Load bioclim layers 
+  
+  # bioclim layer information can be found on worldclim
+  ## the data used was worldclim 2.0 with each layer downloaded for 30s 
+  
+  altL <- raster("climate_layers/alt.bil")
+  bio1L <- raster("climate_layers/wc2.0_bio_30s_01.tif")
+  bio2L <- raster("climate_layers/wc2.0_bio_30s_02.tif")
+  bio3L <- raster("climate_layers/wc2.0_bio_30s_03.tif")
+  bio4L <- raster("climate_layers/wc2.0_bio_30s_04.tif")
+  bio5L <- raster("climate_layers/wc2.0_bio_30s_05.tif")
+  bio6L <- raster("climate_layers/wc2.0_bio_30s_06.tif")
+  bio7L <- raster("climate_layers/wc2.0_bio_30s_07.tif")
+  bio8L <- raster("climate_layers/wc2.0_bio_30s_08.tif")
+  bio9L <- raster("climate_layers/wc2.0_bio_30s_09.tif")
+  bio10L <- raster("climate_layers/wc2.0_bio_30s_10.tif")
+  bio11L <- raster("climate_layers/wc2.0_bio_30s_11.tif")
+  bio12L <- raster("climate_layers/wc2.0_bio_30s_12.tif")
+  bio13L <- raster("climate_layers/wc2.0_bio_30s_13.tif")
+  bio14L <- raster("climate_layers/wc2.0_bio_30s_14.tif")
+  bio15L <- raster("climate_layers/wc2.0_bio_30s_15.tif")
+  bio16L <- raster("climate_layers/wc2.0_bio_30s_16.tif")
+  bio17L <- raster("climate_layers/wc2.0_bio_30s_17.tif")
+  bio18L <- raster("climate_layers/wc2.0_bio_30s_18.tif")
+  bio19L <- raster("climate_layers/wc2.0_bio_30s_19.tif")
+  
+  # Define desired extent
+  ## We are going to use Florida as our desired extent
+  FL <- rgdal::readOGR("climate_layers/FLstate2.shp")
+  
+  # Crop bioclim layers to the desired extent
+  ## First, mask the bioclim layer with Florida.
+  alt <- mask(altL, FL)
+  ## Visualize the masked layers 
+  plot(alt)
+  ## Next, crop the bioclim layers to Florida's extent.
+  alt <- crop(alt, extent(FL))
+  ## Visualize the final layer
+  plot(alt)
+  ## Now save the layer - note we already saved these layers for you, so you have to overwrite the file to save yours
+  writeRaster(alt, "climate_layers/created_layers/alt.asc", format="ascii", overwrite = TRUE)
+  
+  # Repeat with all additional files (This step is very time consuming)
+  bio1 <- mask(bio1L, FL)
+  bio1 <- crop(bio1, extent(FL))
+  writeRaster(bio1, "climate_layers/created_layers/bio1.asc", format="ascii")
+  
+  bio2 <- mask(bio2L, FL)
+  bio2 <- crop(bio2, extent(FL))
+  writeRaster(bio2, "climate_layers/created_layers/bio2.asc", format="ascii")
+  
+  bio3 <- mask(bio3L, FL)
+  bio3 <- crop(bio3, extent(FL))
+  writeRaster(bio3, "climate_layers/created_layers/bio3.asc", format="ascii")
+  
+  bio4 <- mask(bio4L, FL)
+  bio4 <- crop(bio4, extent(FL))
+  writeRaster(bio4, "climate_layers/created_layers/bio4.asc", format="ascii")
+  
+  bio5 <- mask(bio5L, FL)
+  bio5 <- crop(bio5, extent(FL))
+  writeRaster(bio5, "climate_layers/created_layers/bio5.asc", format="ascii")
+  
+  bio6 <- mask(bio6L, FL)
+  bio6 <- crop(bio6, extent(FL))
+  writeRaster(bio6, "climate_layers/created_layers/bio6.asc", format="ascii")
+  
+  bio7 <- mask(bio7L, FL)
+  bio7 <- crop(bio7, extent(FL))
+  writeRaster(bio7, "climate_layers/created_layers/bio7.asc", format="ascii")
+  
+  bio8 <- mask(bio8L, FL)
+  bio8 <- crop(bio8, extent(FL))
+  writeRaster(bio8, "climate_layers/created_layers/bio8.asc", format="ascii")
+  
+  bio9 <- mask(bio9L, FL)
+  bio9 <- crop(bio9, extent(FL))
+  writeRaster(bio9, "climate_layers/created_layers/bio9.asc", format="ascii")
+  
+  bio10 <- mask(bio10L, FL)
+  bio10 <- crop(bio10, extent(FL))
+  writeRaster(bio10, "climate_layers/created_layers/bio10.asc", format="ascii")
+  
+  bio11 <- mask(bio11L, FL)
+  bio11 <- crop(bio11, extent(FL))
+  writeRaster(bio11, "climate_layers/created_layers/bio11.asc", format="ascii")
+  
+  bio12 <- mask(bio12L, FL)
+  bio12 <- crop(bio12, extent(FL))
+  writeRaster(bio12, "climate_layers/created_layers/bio12.asc", format="ascii")
+  
+  bio13 <- mask(bio13L, FL)
+  bio13 <- crop(bio13, extent(FL))
+  writeRaster(bio13, "climate_layers/created_layers/bio13.asc", format="ascii")
+  
+  bio14 <- mask(bio14L, FL)
+  bio14 <- crop(bio14, extent(FL))
+  writeRaster(bio14, "climate_layers/created_layers/bio14.asc", format="ascii")
+  
+  bio15 <- mask(bio15L, FL)
+  bio15 <- crop(bio15, extent(FL))
+  writeRaster(bio15, "climate_layers/created_layers/bio15.asc", format="ascii")
+  
+  bio16 <- mask(bio16L, FL)
+  bio16 <- crop(bio16, extent(FL))
+  writeRaster(bio16, "climate_layers/created_layers/bio16.asc", format="ascii")
+  
+  bio17 <- mask(bio17L, FL)
+  bio17 <- crop(bio17, extent(FL))
+  writeRaster(bio17, "climate_layers/created_layers/bio17.asc", format="ascii")
+  
+  bio18 <- mask(bio18L, FL)
+  bio18 <- crop(bio18, extent(FL))
+  writeRaster(bio18, "climate_layers/created_layers/bio18.asc", format="ascii")
+  
+  bio19 <- mask(bio19L, FL)
+  bio19 <- crop(bio19, extent(FL))
+  writeRaster(bio19, "climate_layers/created_layers/bio19.asc", format="ascii")
+
+# Select layers for MaxEnt
+## We only want to include layers that are not highly correlated.
+## To assess which layers we will include, we want to look at the pearson correlation coefficient among layers.
+### Stack all layers
+stack <- stack(bio1, bio2, bio3, bio4, bio5, bio6, bio7, bio8, bio9, bio10, bio11, bio12, bio13, bio14, bio15, bio16, bio17, bio18, bio19)
+### Then calculate the correlation coefficient
+corr <- layerStats(stack, 'pearson', na.rm=TRUE)
+### Isolate only the pearson correlation coefficient 
+c <- corr$`pearson correlation coefficient`
+
+### Write file and view in excel
+#write.csv(c, "data/climate_processing/correlationBioclim.csv")
+
+## Highly correlated layers (> |0.80|) can impact the statistical significance 
+## of the niche models and therefore must be removed. 
