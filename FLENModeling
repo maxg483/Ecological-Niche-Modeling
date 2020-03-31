@@ -1,0 +1,241 @@
+# Ecological_Niche_Modeling.R
+## Ecological Niche Modeling 
+## This is based off scripts created by Hannah Owens and James Watling, and Anthony Melton.
+## Modified and created by ML Gaynor.
+### Further modified by Max Gebhart 
+
+# Load Packages
+library(raster)
+library(rgdal)
+library(ENMTools)
+library(dismo)
+library(RStoolbox)
+library(hypervolume)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gtools)
+library(ggbiplot)
+
+# Load Datafiles 
+florida_points <- read.csv("data/FLMaxEntPoints_cleaning.csv")
+
+## Subset occurence records for each species
+H_Agrestis <- florida_points %>%
+  filter(species == "Helianthus agrestis")
+
+H_Carnosus <- florida_points %>%
+  filter(species == "Healianthus carnosus")
+
+H_Debilis_deb <- florida_points %>%
+  filter(species == "Helianthus debilis subsp. debilis")
+
+H_Debilis_tar <- florida_points %>%
+  filter(species == "Helianthus debilis subsp. tardiflorus")
+
+# Raster layers
+list <- list.files("climate_layers/PresentLayers/", full.names = T, recursive = FALSE) 
+list <- mixedsort(sort(list))
+envtStack <- stack(list)
+
+## Removing highly correlated layers
+library(caret)
+c <- data.matrix(read.csv("climate_layers/correlationBioclim.csv", header = TRUE, row.names = 1,
+                          sep = ","))
+### Take absolute value
+c <- abs(c)
+# Find rows that should be removed
+envtCor <- findCorrelation(c, cutoff = 0.80, names = TRUE, exact = TRUE)
+sort(envtCor)
+envtCor
+####keep: bio2, bio3, bio5, bio8, bio9, bio12,  bio14, and bio18
+
+### Subset layers
+# subset layers that will be used for analysis
+# organized by columns with 1 being the alt layer
+envt.subset<-subset(envtStack, c(3, 4, 6, 9, 10, 13, 15, 19)) 
+envt.subset
+
+
+# ENM - Realized Niche
+
+## For each occurence record, extract the value for each bioclim variables using the package raster.
+ptExtract_H_agrestis <- raster::extract(envt.subset, H_Agrestis[3:2])
+ptExtract_H_carnosus <- raster::extract(envt.subset, H_Carnosus[3:2])
+ptExtract_H_debilis_deb <- raster::extract(envt.subset, H_Debilis_deb[3:2])
+ptExtract_H_debilis_tar <- raster::extract(envt.subset, H_Debilis_tar[3:2])
+
+## Convert the extracted information for all species and combined.This is a quick function to convert the files to dataframes.
+convert_ptExtract <- function(value, name){
+  # convert ptExtract to a data frame
+  value_df <- as.data.frame(value)
+  # add a column with species name
+  value_df_DONE <- value_df %>% 
+    mutate(species = name)
+  # return data frame
+  return(value_df_DONE)
+}
+
+ptExtract_H_agrestis_df <- convert_ptExtract(ptExtract_H_agrestis, "Helianthus agrestis")
+ptExtract_H_debilis_deb_df <- convert_ptExtract(ptExtract_H_debilis_deb, "Helianthus debilis subsp. debilis")
+ptExtract_H_debilis_tar_df <- convert_ptExtract(ptExtract_H_debilis_tar, "Helianthus debilis subsp. tardiflorus")
+
+## H. carnosus had no values that fit into the bioclim layers so it was removed
+### Combined the three converted files and remove any values where NA appears 
+pointsamples_combined <- rbind(ptExtract_H_agrestis_df,ptExtract_H_debilis_deb_df, ptExtract_H_debilis_tar_df)
+pointsamples_combined <- pointsamples_combined %>% 
+  drop_na(bio2, bio3, bio5, bio8, bio9, bio12, bio14, bio18)
+
+
+## PCA 
+### Create two dataframes.
+data.bioclim <- pointsamples_combined[, 1:8]
+data.species <- pointsamples_combined[, 9]
+
+### Using only the bioclim columns to run the principal components analysis.
+data.pca <- prcomp(data.bioclim, scale. = TRUE) 
+
+#### Understanding the PCA - Optional 
+library(factoextra)
+library(FactoMineR)
+
+##### When you use the command prcomp your loading variables show up as rotational variables. 
+##### Thanks to a really great answer on stack overflow: https://stackoverflow.com/questions/43407859/how-do-i-find-the-link-between-principal-components-and-raw-datas-variables
+##### you can even convert the rotational 
+##### variable to show the relative contribution.
+
+loadings <- data.pca$rotation
+summary(loadings)
+
+##### There are two options to convert the loading to show the relative contribution, 
+##### they both give the same answer so either can be used.
+loadings_relative_A <- t(t(abs(loadings))/rowSums(t(abs(loadings))))*100
+summary(loadings_relative_A)
+
+loadings_relative_B <- sweep(x = abs(loadings), MARGIN = 2, STATS = colSums(abs(loadings)), FUN = "/")*100
+summary(loadings_relative_B)
+
+#### Plotting the PCA
+##### First, I made a theme to change the background of the plot. Next, I changed the plot margins and the text size.
+theme <- theme(panel.background = element_blank(),panel.border=element_rect(fill=NA),
+               panel.grid.major = element_blank(),panel.grid.minor = element_blank(),
+               strip.background=element_blank(),axis.ticks=element_line(colour="black"),
+               plot.margin=unit(c(1,1,1,1),"line"), axis.text = element_text(size = 12), 
+               legend.text = element_text(size = 12), legend.title = element_text(size = 12),
+               text = element_text(size = 12))
+##### Next, ggbiplot where obs.scale indicates the scale factor to apply to observation, 
+##### var.scale indicates the scale factor to apply to variables, 
+##### ellipse as TRUE draws a normal data ellipse for each group, 
+##### and circle as TRUE draws a correlation circle.
+g <- ggbiplot(data.pca, obs.scale = 1, var.scale = 1, groups = data.species, ellipse = TRUE, circle = TRUE)
+g <- g + theme
+g <- g + scale_colour_manual(values = c("#73dfff", "#ff8700", "#7a8ef5"))
+g <- g + theme(legend.direction = 'horizontal', legend.position = 'bottom')
+g
+
+####################################################################################################################################################################################
+
+# ENM - Models 
+# We are using ENMTools to generate ENM models using MAXENT. 
+# This package may cause you trouble, for troubleshooting, see below.
+
+## Correct data format to be used to generate models.
+envt.subset <- setMinMax(envt.subset)
+proj4string(envt.subset) <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+## Correct species format to required ENMTools input.
+H_agrestis_enm <- enmtools.species(species.name = "Helianthus agrestis",
+                                            presence.points = H_Agrestis[,3:2])
+
+H_agrestis_enm$range <- background.raster.buffer(H_agrestis_enm$presence.points, 25000, mask = envt.subset)
+H_agrestis_enm$background.points = background.points.buffer(points = H_agrestis_enm$presence.points, radius = 5000, n = 10000, mask =  envt.subset[[1]])
+##############################
+H_debilis_deb_enm <- enmtools.species(species.name = "Helianthus debilis subsp. debilis",
+                                        presence.points = H_Debilis_deb[,3:2])
+H_debilis_deb_enm$range <- background.raster.buffer(H_debilis_deb_enm$presence.points, 25000, mask = envt.subset)
+H_debilis_deb_enm$background.points = background.points.buffer(points = H_debilis_deb_enm$presence.points, radius = 5000, n = 10000, mask =  envt.subset[[1]])
+#############################
+H_debilis_tar_enm <- enmtools.species(species.name = "Helianthus debilis subsp. tardiflorus",
+                                        presence.points = H_Debilis_tar[,3:2])
+
+H_debilis_tar_enm$range <- background.raster.buffer(H_debilis_tar_enm$presence.points, 25000, mask = envt.subset)
+H_debilis_tar_enm$background.points = background.points.buffer(points = H_debilis_tar_enm$presence.points, radius = 5000, n = 10000, mask =  envt.subset[[1]])
+
+
+
+## Use MAXENT and generate models. These models will be used in the next tab. Here, the proportion of data to withhold randomly is set to 0.25. 
+## To match the GUI settings, add rts.reps = 5
+H_agrestis_enm.mx <- enmtools.maxent(species = H_agrestis_enm, env = envt.subset, test.prop = 0.25)
+
+######### issue happening with debilis deb
+H_debilis_deb_enm.mx <- enmtools.maxent(species = H_debilis_deb_enm, env = envt.subset, test.prop = 0.25)
+###
+
+H_debilis_tar_enm.mx <- enmtools.maxent(species = H_debilis_tar_enm, env = envt.subset, test.prop = 0.25)
+
+## Save models
+save(H_agrestis_enm.mx, file = "data/ENM data/H_agrestis.rda")
+save(H_debilis_deb_enm.mx, file = "data/ENM data/H_debilis_deb.rda" )
+save(H_debilis_tar_enm.mx, file = "data/ENM data/H_debilis_tar.rda" )
+
+## Inspect the model 
+interactive.plot.enmtools.model(H_agrestis_enm.mx)
+H_agrestis_enm.mx$model
+
+interactive.plot.enmtools.model(H_debilis_deb_enm.mx)
+H_debilis_deb_enm.mx$model
+
+interactive.plot.enmtools.model(H_debilis_tar_enm.mx)
+H_debilis_tar_enm.mx$model
+
+####################################################################################################################################################################################
+# TROUBLESHOOTING
+
+# This exercise required the package ENMTools.
+# This package requires Java (and the Oracle Java JDK) and that the maxent.jar
+# file is in the folder that contains the dismo package 
+# (this package is a dependency of ENMTools). 
+
+## To find out where to put the jar file, run the command:
+system.file("java", package="dismo")
+
+## To download the jar file to the right directory —
+library(devtools)
+install_github("johnbaums/rmaxent")
+library(rmaxent)
+get_maxent(version = "latest", quiet = FALSE)
+
+## Then reload rgdal (it is masked by the rmaxent package)
+
+# If you are having error messages about rJava, your Java configuration for R may be wrong:
+
+## Remove rJava
+remove.packages(rJava)
+## Update your R Java configuration 
+system("sudo R CMD javareconf")
+## Restart R and check to see if the path matches
+Sys.getenv("DYLD_FALLBACK_LIBRARY_PATH")
+## Reinstall rJava
+install.packages("rJava")
+library(rJava)
+
+## If you are still having issues with rJava - 
+## check to see if you are using java 12 (this should be included in the error message)
+system("java -version")
+
+## The inital relase of java 12 does not work - 
+## install an old version instead Find on the Oracle website or use homebrew
+system("brew cask install homebrew/cask-versions/java11")
+
+## Uninstall Java 12, then repeat the following
+## Remove rJava
+remove.packages(rJava)
+## Update your R Java configuration 
+system("sudo R CMD javareconf")
+## Restart R and check to see if the path matches
+Sys.getenv("DYLD_FALLBACK_LIBRARY_PATH")
+## Reinstall rJava
+install.packages("rJava")
+library(rJava)
+
+## If you have additional issues, let us know!
