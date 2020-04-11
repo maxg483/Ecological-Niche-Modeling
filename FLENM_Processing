@@ -1,0 +1,256 @@
+# ENM_Processing.R
+# Processing ENMs
+## This script is for the ENM processing section of the Botany 2019 workshop
+## Script by Anthony Melton and ML Gaynor.
+###Further edited by Max Gebhart
+
+# Load Packages
+library(raster)
+library(ENMTools)
+library(ENMeval)
+library(gtools)
+library(dplyr)
+library(RStoolbox)
+library(hypervolume)
+library(phytools)
+library(alphahull)
+
+######### See Ecological_Niche_Modeling.R to generate models in R
+## MaxEnt Gui options are in parentheses and condensed
+
+{# You can also read the models you generated with the MaxEnt GUI into R.
+Asclepias_curtissii_enm.mx.b <- raster("data/enm_output/Asclepias_curtissii/Asclepias_curtissii_avg.asc")
+Asimina_obovata_enm.mx.b <- raster("data/enm_output/Asclepias_obovata/Asimina_obovata_avg.asc")
+Pinus_palustris_enm.mx.b <- raster("data/enm_output/Pinus_palustris/Pinus_palustris_avg.asc")
+}
+
+# You can also read the models you generated with ENMTools in R.
+load(file = "data/ENM Data/H_agrestis.rda")
+load(file = "data/ENM Data/H_debilis_deb.rda")
+load(file = "data/ENM Data/H_debilis_tar.rda")
+
+# Read in Bioclim layers
+## These steps are described in the previoius script
+list <- list.files("climate_layers/PresentLayers/", full.names = T, recursive = FALSE) 
+list <- mixedsort(sort(list))
+envtStack <- stack(list)
+envt.subset<-subset(envtStack, c(3, 4, 6, 9, 10, 13, 15, 19)) 
+envt.subset <- setMinMax(envt.subset)
+proj4string(envt.subset) <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# ENM Breadth 
+## Niche breadth is the breadth of environmental factors for a species' niche, 
+## ranging from 0 to 1. 
+## When breadth is closer to 1 the more generalist species with wider tolerances.
+## Values closer to 0 indicate a more specialized species
+## The raster.breadth command in ENMTools measures the smoothness of suitability
+## scores across a projected landscape. The higher the score, the more of the 
+## available niche space a species occupies.
+
+## Rbased
+HA_breadth <- ENMTools::raster.breadth(x = H_agrestis_enm.mx$suitability)
+HA_breadth$B2
+HD_breadth <- ENMTools::raster.breadth(x = H_debilis_deb_enm.mx$suitability)
+HD_breadth$B2
+HT_breadth <- ENMTools::raster.breadth(x= H_debilis_tar_enm.mx$suitability)
+HT_breadth$B2
+
+{## MaxEnt GUI
+Ac_breadth.b <- ENMTools::raster.breadth(x = Asclepias_curtissii_enm.mx.b)
+Ac_breadth.b$B2
+Ao_breadth.b <- ENMTools::raster.breadth(x = Asimina_obovata_enm.mx.b)
+Ao_breadth.b$B2
+Pp_breadth.b <- ENMTools::raster.breadth(x = Pinus_palustris_enm.mx.b)
+Pp_breadth.b$B2
+}
+# ENM Overlap
+## Calculating niche overlap, Schoener’s D, with ENMEval - 
+## Schoener’s D ranges from 0 to 1,
+## where zero represents no similarity between the projections 
+## and one represents completely identical projections.
+
+## ## Rbased
+### Stack the projections and make sure the stack is named.
+enm_stack <- stack(H_agrestis_enm.mx$suitability, H_debilis_deb_enm.mx$suitability,H_debilis_tar_enm.mx$suitability)
+names(enm_stack) <- c("Helianthus agrestis", "Helianthus debilis subsp debilis", "Helianthus debilis subsp tardiflorus")
+
+### Calculate 
+calc.niche.overlap(enm_stack, stat = "D")
+{
+## MaxEnt GUI
+### Stack the projections and make sure the stack is named.
+enm_stack.b <- stack(Asclepias_curtissii_enm.mx.b, Asimina_obovata_enm.mx.b,Pinus_palustris_enm.mx.b)
+names(enm_stack.b) <- c("Asclepias_curtissii", "Asimina_obovata", "Pinus_palustris")
+
+
+### Calculate 
+calc.niche.overlap(enm_stack.b, stat = "D")
+}
+
+#############################
+# Hypervolume
+# The following command generates a binary predicted occurrence map. To run this command,
+# a function must be generated. There are two functions in the Functions.R script.
+# By sourcing the script, the functions will be generated and you can run them here!
+
+source("functions/Functions_AEM.R") # Only needs to be ran once per session to generate the functions.
+
+# this will generate a binary map with any cell that contains a suitability score greater than
+# or equal to the lowest score with an occurrence point as a presence. There are other ways
+# to set the threshold, including percentiles or training statistics.
+
+## Load occurrence data 
+florida_points <- read.csv("data/cleaning_demo/MaxEntPointsInput_cleaned.csv")
+
+Hel_agrestis.pts <- florida_points %>%
+  filter(species == "Helianthus agrestis")
+
+Hel_debilis_deb.pts <- florida_points %>%
+  filter(species == "Helianthus debilis subsp. debilis")
+
+Hel_debilis_tar.pts <- florida_points %>%
+  filter(species == "Helianthus debilis subsp. tardiflorus")
+
+## Create the binary maps 
+
+Agrestis.dist <- make.binary.map(model = H_agrestis_enm.mx.b, occ.dat = Hel_agrestis.pts)
+Debilis.dist <- make.binary.map(model = H_debilis_deb_enm.mx.b, occ.dat = Hel_debilis_deb.pts)
+Tardiflorus.dist <- make.binary.map(model = H_debilis_tar_enm.mx.b, occ.dat = Hel_debilis_tar.pts)
+
+### Plot
+par(mfrow = c(1,3))
+plot(Agrestis.dist)
+plot(Debilis.dist)
+plot(Tardiflorus.dist)
+
+
+## Next, let's work on getting some data from the predicted distributions!
+## Niche space can be thought of as a multi-dimensional hypervolume. We're 
+## using climatic data in this case, so we're measuring the hypervolume
+## of climatic niche space occupied by these species in FL.
+
+Agrestis.hv <- get_hypervolume(binary_projection = Agrestis.dist, envt = envt.subset)
+Debilis.hv <- get_hypervolume(binary_projection = Debilis.dist, envt = envt.subset)
+Tardiflorus.hv <- get_hypervolume(binary_projection = Tardiflorus.dist, envt = envt.subset)
+
+## Compare the hypervolumes
+### only 2 hypervolumes can be compared at a time
+hv_set <- hypervolume_set(hv1 = Agrestis.hv, hv2 = Debilis.hv, check.memory = F)
+hypervolume_overlap_statistics(hv_set)
+plot(hv_set)
+get_volume(hv_set)
+
+# Phylogenetic correlations
+## Let's look at niche overlap over a tree!
+## Load the tree file
+tree <- read.newick(file = "data/AOC_Test_Demo/tree.tre")
+tree <- ape::compute.brlen(phy = tree, method = "grafen")
+plot(tree)
+
+## Need to add a species to match the tree
+Liatris_chapmanii.pts <- read.csv("data/AOC_Test_Demo/clean_L_chapmaniiPointsSPOCC_EDITS.csv")[,2:3]
+
+## Generate species objects; should have first three from previous exercise
+H_agrestis <- enmtools.species(species.name = "Helianthus agrestis",
+                                        presence.points = Hel_agrestis.pts[,3:2])
+H_agrestis$range <- background.raster.buffer(H_agrestis$presence.points, 25000, mask = envt.subset)
+H_agrestis$background.points = background.points.buffer(points = H_agrestis$presence.points, radius = 5000, n = 10000, mask =  envt.subset[[1]])
+##############################
+H_deb_deb <- enmtools.species(species.name = "Helianthus debilis subsp. debilis",
+                                    presence.points = Hel_debilis_deb.pts[,3:2])
+H_deb_deb$range <- background.raster.buffer(H_deb_deb$presence.points, 25000, mask = envt.subset)
+H_deb_deb$background.points = background.points.buffer(points = H_deb_deb$presence.points, radius = 5000, n = 10000, mask =  envt.subset[[1]])
+#############################
+H_deb_tar <- enmtools.species(species.name = "Helianthus debilis subsp. tardiflorus",
+                                    presence.points = Hel_debilis_tar.pts[,3:2])
+H_deb_tar$range <- background.raster.buffer(H_deb_tar$presence.points, 25000, mask = envt.subset)
+H_deb_tar$background.points = background.points.buffer(points = H_deb_tar$presence.points, radius = 5000, n = 10000, mask =  envt.subset[[1]])
+#############################
+Liatris_chapmanii <- enmtools.species(species.name = "Liatris_chapmanii",
+                                      presence.points = Liatris_chapmanii.pts)
+Liatris_chapmanii$range <- background.raster.buffer(Liatris_chapmanii$presence.points, 25000, mask = envt.subset)
+Liatris_chapmanii$background.points = background.points.buffer(points = Liatris_chapmanii$presence.points, radius = 5000, n = 10000, mask =  envt.subset[[1]])
+
+
+## Create "clade" object with all the species in the tree
+clade=enmtools.clade(species = list(H_agrestis, H_deb_deb, H_deb_tar, Liatris_chapmanii), tree = tree)
+check.clade(clade)
+
+
+## Age-Range Correlation Test
+range.aoc <- enmtools.aoc(clade = clade,  nreps = 10, overlap.source = "range")
+summary(range.aoc)
+
+## Age-Overlap Correlation Test
+glm.aoc <- enmtools.aoc(clade = clade,  env = envt.subset, nreps = 10, overlap.source = "glm")
+summary(glm.aoc)
+
+# The results here are pretty meaningless since we're looking at very few, distantly related species, but it serves
+# the purpose of the demo. For range AOCs, an intercept >0.5 and negative slope are indicative of sympatric species,
+# while an intercept of <0.5 and a positive slope are indicative on non-sympatric speciation. A low intercept and 
+# positive slope for niche overlap would indicate niche divergence.
+
+# Multivariate environment similarity surface (MESS) analysis and mahalanobis distances
+## Load layers 
+### Training region layers
+env.files.c <- list.files(path = "data/climate_processing/PresentLayers/", pattern = ".asc", full.names = TRUE) #Always check for tiff or asc
+current <- stack(env.files.c)
+names(current) <- c("alt", "bio1", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9")
+current <- setMinMax(current)
+projection(current) <- "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"
+plot(current[[1]])
+
+### Projection layers
+#### These can be a different geographic region or different time period
+env.files.p <- list.files(path = "data/climate_processing/Coastal_Plains_Layers/", pattern = ".asc", full.names = TRUE) #Always check for tiff or asc
+proj <- stack(env.files.p)
+names(proj) <- c("alt", "bio1", "bio10", "bio11", "bio12", "bio13", "bio14", "bio15", "bio16", "bio17", "bio18", "bio19", "bio2", "bio3", "bio4", "bio5", "bio6", "bio7", "bio8", "bio9")
+proj <- setMinMax(proj)
+projection(proj) <- "+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs"
+plot(proj[[1]])
+
+## MESS
+### For MESS, the more negative the score, the more likely you are to project 
+### into novel environments. 
+
+### Generate a data frame from the raster data
+ref <- as.data.frame(current) 
+head(ref)
+
+### Use dismo to run the MESS. Negative results means dissimilarity
+mess <- mess(x = proj, v = ref, full = FALSE) # 
+plot(mess)
+
+## Mahalanobis distances.
+### For mahalanobis distances, zero equals completely overlapping. 
+### Comparatively, the higher the distance, 
+### the more likely you are to project into an environment that falls 
+### outside the range of the training region, leading to unreliable projections.
+
+## Greater numbers means the variables are more dissimilar.
+
+### Generate data frames containing the environmental data
+refdat <- as.data.frame(ref) 
+head(refdat)
+
+projdat <- as.data.frame(proj) 
+head(projdat)
+
+### Calculate the average and covariance matrix of the variables 
+### in the reference set
+ref.av <- colMeans(refdat, na.rm=TRUE)
+ref.cov <- var(refdat, na.rm=TRUE)
+
+### Calculate the mahalanobis distance of each raster cell to the environmental center of the reference 
+### set for both the reference and the projection data set and calculate the ratio between the two.
+mah.ref <- mahalanobis(x=refdat, center=ref.av, cov=ref.cov, tol=1e-20)
+mah.pro <- mahalanobis(x=projdat, center=ref.av, cov=ref.cov, tol=1e-20)
+mah.max <- max(mah.ref[is.finite(mah.ref)])
+nt2 <- as.data.frame(mah.pro / mah.max)
+
+### Create and plot the raster layer
+NT2 <- read.asciigrid(env.files.p[[1]])
+NT2@data <- nt2
+NT2rast <- raster(NT2)
+plot(NT2rast, col=rainbow(100))
+
